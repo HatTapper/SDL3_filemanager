@@ -1,0 +1,11 @@
+/home/aidanmyles/Desktop/SDL_FileManager/build/CMakeFiles/main.dir
+/home/aidanmyles/Desktop/SDL_FileManager/build/CMakeFiles/edit_cache.dir
+/home/aidanmyles/Desktop/SDL_FileManager/build/CMakeFiles/rebuild_cache.dir
+/home/aidanmyles/Desktop/SDL_FileManager/build/vendored/SDL/CMakeFiles/SDL3-shared.dir
+/home/aidanmyles/Desktop/SDL_FileManager/build/vendored/SDL/CMakeFiles/SDL3_test.dir
+/home/aidanmyles/Desktop/SDL_FileManager/build/vendored/SDL/CMakeFiles/SDL_uclibc.dir
+/home/aidanmyles/Desktop/SDL_FileManager/build/vendored/SDL/CMakeFiles/edit_cache.dir
+/home/aidanmyles/Desktop/SDL_FileManager/build/vendored/SDL/CMakeFiles/rebuild_cache.dir
+/home/aidanmyles/Desktop/SDL_FileManager/build/vendored/SDL_ttf/CMakeFiles/SDL3_ttf-shared.dir
+/home/aidanmyles/Desktop/SDL_FileManager/build/vendored/SDL_ttf/CMakeFiles/edit_cache.dir
+/home/aidanmyles/Desktop/SDL_FileManager/build/vendored/SDL_ttf/CMakeFiles/rebuild_cache.dir
