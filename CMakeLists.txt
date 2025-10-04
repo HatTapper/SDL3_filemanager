@@ -13,7 +13,7 @@ add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
 add_subdirectory(vendored/SDL_ttf EXCLUDE_FROM_ALL)
 
 # Create your game executable target as usual
-add_executable(main WIN32 main.cpp)
+add_executable(main WIN32 src/main.cpp)
 
 # Link to the actual SDL3 library.
 target_link_libraries(main PRIVATE SDL3_ttf::SDL3_ttf SDL3::SDL3)

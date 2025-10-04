@@ -1,4 +1,4 @@
-#include "SDL_filemanager.h"
+#include "include/SDL_filemanager.h"
 
 static bool shiftPressed = false;
 
@@ -161,7 +161,7 @@ int main(void)
     Application.running = true;
 
     Application.FontRenderer.TextEngine = TTF_CreateRendererTextEngine(Application.Renderer);
-    Application.FontRenderer.Font = TTF_OpenFont("Ubuntu-L.ttf", 16);
+    Application.FontRenderer.Font = TTF_OpenFont("data/font/Ubuntu-L.ttf", 16);
 
     if(Application.Surface == NULL)
     {
