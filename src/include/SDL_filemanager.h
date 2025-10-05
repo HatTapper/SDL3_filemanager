@@ -10,38 +10,45 @@
 #include <stdlib.h>
 
 #define GOAL_FRAME_RATE 60
-#define GOAL_FRAME_TIME ((double)1000 / (double)GOAL_FRAME_RATE)
+#define GOAL_FRAME_TIME (1000.0 / (double)GOAL_FRAME_RATE)
 #define DEBUG 0
 #define WINDOW_WIDTH 720
 #define WINDOW_HEIGHT 540
+#define COMMAND_MAX_LENGTH 50
 
-typedef struct SDL_MouseData {
+struct SDL_MouseData {
     int posX;
     int posY;
     int deltaX;
     int deltay;
-} SDL_MouseData;
+};
 
-typedef struct SDL_FontRenderer {
+struct SDL_FontRenderer {
     TTF_TextEngine* TextEngine;
     TTF_Font* Font;
-} SDL_FontRenderer;
+};
 
-typedef struct SDL_Application {
+struct SDL_CommandPrompt {
+    char* text;
+    bool shouldFree;
+};
+
+struct SDL_Application {
     SDL_Window* Window;
     SDL_Surface* Surface;
     SDL_Renderer* Renderer;
     SDL_FontRenderer FontRenderer;
     SDL_MouseData MouseData;
     SDL_Event Event;
+    SDL_CommandPrompt CommandPrompt;
     
     bool running;
-} SDL_Application;
+};
 
-typedef struct Directory {
+struct Directory {
     char fileName[PATH_MAX];
     int numChildren;
     Directory* children;
-} Directory;
+};
 
 #endif

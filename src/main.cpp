@@ -2,54 +2,64 @@
 
 static bool shiftPressed = false;
 
+void SDL_DrawBackground(SDL_Application* Application)
+{
+    SDL_SetRenderDrawColor(Application->Renderer, 0x00, 0x00, 0x00, 0xFF);
+    SDL_RenderClear(Application->Renderer);
+
+    SDL_SetRenderDrawColor(Application->Renderer, 0x30, 0x30, 0x30, 0xFF);
+    SDL_FRect rect = {};
+    rect.x = 0;
+    rect.y = WINDOW_HEIGHT - 30;
+    rect.w = WINDOW_WIDTH;
+    rect.h = 30;
+    SDL_RenderFillRect(Application->Renderer, &rect);
+
+    SDL_Log("%s", Application->CommandPrompt.text);
+    TTF_Text* TTFtext;
+    if(Application->CommandPrompt.text != "")
+    {
+        TTFtext = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, Application->CommandPrompt.text, 0);
+    }
+    else
+    {
+        TTFtext = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, "", 0);
+    }
+    TTF_DrawRendererText(TTFtext, 15, WINDOW_HEIGHT - 24);
+    TTF_DestroyText(TTFtext);
+}
+
 void SDL_ClearCommandLine(SDL_Application* Application)
 {
-    SDL_FRect clear = {};
-    clear.x = 0;
-    clear.y = WINDOW_HEIGHT - 30;
-    clear.w = WINDOW_WIDTH;
-    clear.h = 30;
-
-    SDL_SetRenderDrawColor(Application->Renderer, 0x00, 0x00, 0x00, 0xFF);
-    SDL_RenderFillRect(Application->Renderer, &clear);
+    for(int i = 0; i < COMMAND_MAX_LENGTH; i++)
+    {
+        Application->CommandPrompt.text[i] = 0;
+    }
 }
 
-void SDL_TypeToCommandLine(SDL_Application* Application, SDL_KeyboardEvent* event)
+void SDL_BackspaceCommandLine(SDL_Application* Application)
 {
-    static int xOffset = 0;
-
-    SDL_Keycode key = SDL_GetKeyFromScancode(event->scancode, event->mod, true);
-    const char* keyName = SDL_GetKeyName(key);
-    if(!strncmp(keyName, "Space", 5))
-    {
-        keyName = " ";
-    }
-    else if(!strncmp(keyName, "Backspace", 9))
-    {
-        SDL_ClearCommandLine(Application);
-        xOffset = 0;
-        return;
-    }
-    else if(!strncmp(keyName, "Left Shift", 10))
+    if(Application->CommandPrompt.text == "")
     {
         return;
     }
 
-    if(shiftPressed)
-    {
-        char* modifiable_str = (char*)malloc(strlen(keyName) + 1);
-        strncpy(modifiable_str, keyName, strlen(keyName));
-        keyName = SDL_strupr(modifiable_str);
-    }
-
-    int textWidth = 0;
-    TTF_Text* text = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, keyName, 0);
-    TTF_DrawRendererText(text, 30 + xOffset, WINDOW_HEIGHT - 30);
-    TTF_GetTextSize(text, &textWidth, NULL);
-    TTF_DestroyText(text);
-
-    xOffset += textWidth;
+    int initialLength = strlen(Application->CommandPrompt.text);
+    Application->CommandPrompt.text[initialLength - 1] = 0;
 }
+
+void SDL_TypeToCommandLine(SDL_Application* Application, const char* text)
+{
+    // prevent out of bounds
+    int currentTextLength = strlen(Application->CommandPrompt.text);
+    if(currentTextLength >= COMMAND_MAX_LENGTH)
+    {
+        return;
+    }
+
+    // append the text to the command prompt
+    strncat(Application->CommandPrompt.text, text, strlen(text));
+}   
 
 void SDL_ProcessEvent(SDL_Application* Application)
 {
@@ -61,22 +71,21 @@ void SDL_ProcessEvent(SDL_Application* Application)
         } break;
         case SDL_EVENT_KEY_DOWN:
         {
-            SDL_Log("Key down. %c", Application->Event.key.key);
-            const char* keyName = SDL_GetKeyName(Application->Event.key.key);
-            if(!strncmp(keyName, "Left Shift", 10))
+            if(Application->Event.key.scancode == SDL_SCANCODE_RETURN)
             {
-                shiftPressed = true;
+                SDL_ClearCommandLine(Application);
             }
-            SDL_TypeToCommandLine(Application, &Application->Event.key);
+            else if(Application->Event.key.scancode == SDL_SCANCODE_BACKSPACE)
+            {
+                SDL_BackspaceCommandLine(Application);
+            }
         } break;
         case SDL_EVENT_KEY_UP:
         {
-            SDL_Log("Key up. %c", Application->Event.key.key);
-            const char* keyName = SDL_GetKeyName(Application->Event.key.key);
-            if(!strncmp(keyName, "Left Shift", 10))
-            {
-                shiftPressed = false;
-            }
+        } break;
+        case SDL_EVENT_TEXT_INPUT:
+        {
+            SDL_TypeToCommandLine(Application, Application->Event.text.text);
         } break;
         case SDL_EVENT_MOUSE_MOTION:
         {  
@@ -147,6 +156,9 @@ int main(void)
     SDL_Event Event;
     SDL_MouseData mData = {};
     SDL_FontRenderer mFontRenderer = {};
+    SDL_CommandPrompt mCommandPrompt = {};
+    mCommandPrompt.shouldFree = false;
+    mCommandPrompt.text = (char*)calloc(sizeof(char) * COMMAND_MAX_LENGTH, sizeof(char));
     bool running = true;
     const bool* keyMap = SDL_GetKeyboardState(NULL);
 
@@ -157,11 +169,19 @@ int main(void)
     Application.Renderer = SDL_GetRenderer(Application.Window);
     Application.MouseData = mData;
     Application.FontRenderer = mFontRenderer;
+    Application.CommandPrompt = mCommandPrompt;
     Application.Event = Event;
     Application.running = true;
 
+    SDL_Rect rect = {};
+    rect.x = 0;
+    rect.y = WINDOW_HEIGHT - 30;
+    rect.w = WINDOW_WIDTH;
+    rect.h = 30;
+    SDL_SetTextInputArea(Application.Window, &rect, 0);
+
     Application.FontRenderer.TextEngine = TTF_CreateRendererTextEngine(Application.Renderer);
-    Application.FontRenderer.Font = TTF_OpenFont("data/font/Ubuntu-L.ttf", 16);
+    Application.FontRenderer.Font = TTF_OpenFont("data/font/FreeSans.ttf", 16);
 
     if(Application.Surface == NULL)
     {
@@ -174,6 +194,8 @@ int main(void)
         return SDL_APP_FAILURE;
     }
 
+    SDL_StartTextInput(Application.Window);
+
     // main application loop
     while(Application.running)
     {
@@ -185,11 +207,13 @@ int main(void)
         }
 
         //SDL_DrawWindowBackground(&Application);
+        SDL_DrawBackground(&Application);
         SDL_RenderPresent(Application.Renderer);
         
 
         Uint64 timeToComplete = SDL_GetTicks() - currentTick;
         // we want a consistent 60fps frame rate
+        // this is granular enough for a simple file manager
         Uint64 remaining = GOAL_FRAME_TIME - (double)timeToComplete;
         if(remaining > 0)
         {
@@ -203,10 +227,13 @@ int main(void)
         #endif
     }
 
+    SDL_StopTextInput(Application.Window);
+
     TTF_CloseFont(Application.FontRenderer.Font);
     TTF_DestroyRendererTextEngine(Application.FontRenderer.TextEngine);
     SDL_DestroyRenderer(Application.Renderer);
     SDL_DestroyWindowSurface(Application.Window);
     SDL_DestroyWindow(Application.Window);
+    free(Application.CommandPrompt.text);
     SDL_Quit();   
 }
