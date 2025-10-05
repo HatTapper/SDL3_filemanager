@@ -10,7 +10,7 @@ Assuming you have the necessary dependencies, to build the project you run these
 
 ```bash
 git clone https://github.com/HatTapper/SDL3_filemanager.git --depth=1 --recurse-submodules
-cd sdl3-sample
+cd SDL3_filemanager
 cmake -S . -B build
 ```
 
