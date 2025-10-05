@@ -14,3 +14,9 @@ cd sdl3-sample
 cmake -S . -B build
 ```
 
+From there you can build the executable and run it with these commands:
+
+```bash
+cmake --build build
+./build/main
+```
