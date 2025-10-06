@@ -39,7 +39,6 @@ struct SDL_Application {
     SDL_Renderer* Renderer;
     SDL_FontRenderer FontRenderer;
     SDL_MouseData MouseData;
-    SDL_Event Event;
     SDL_CommandPrompt CommandPrompt;
     
     bool running;

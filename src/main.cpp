@@ -15,7 +15,6 @@ void SDL_DrawBackground(SDL_Application* Application)
     rect.h = 30;
     SDL_RenderFillRect(Application->Renderer, &rect);
 
-    SDL_Log("%s", Application->CommandPrompt.text);
     TTF_Text* TTFtext;
     if(Application->CommandPrompt.text != "")
     {
@@ -61,9 +60,9 @@ void SDL_TypeToCommandLine(SDL_Application* Application, const char* text)
     strncat(Application->CommandPrompt.text, text, strlen(text));
 }   
 
-void SDL_ProcessEvent(SDL_Application* Application)
+void SDL_ProcessEvent(SDL_Application* Application, SDL_Event* event)
 {
-    switch(Application->Event.type)
+    switch(event->type)
     {
         case SDL_EVENT_QUIT:
         {
@@ -71,11 +70,11 @@ void SDL_ProcessEvent(SDL_Application* Application)
         } break;
         case SDL_EVENT_KEY_DOWN:
         {
-            if(Application->Event.key.scancode == SDL_SCANCODE_RETURN)
+            if(event->key.scancode == SDL_SCANCODE_RETURN)
             {
                 SDL_ClearCommandLine(Application);
             }
-            else if(Application->Event.key.scancode == SDL_SCANCODE_BACKSPACE)
+            else if(event->key.scancode == SDL_SCANCODE_BACKSPACE)
             {
                 SDL_BackspaceCommandLine(Application);
             }
@@ -85,14 +84,7 @@ void SDL_ProcessEvent(SDL_Application* Application)
         } break;
         case SDL_EVENT_TEXT_INPUT:
         {
-            SDL_TypeToCommandLine(Application, Application->Event.text.text);
-        } break;
-        case SDL_EVENT_MOUSE_MOTION:
-        {  
-            Application->MouseData.posX = Application->Event.motion.x;
-            Application->MouseData.posY = Application->Event.motion.y;
-            Application->MouseData.deltaX = Application->Event.motion.xrel;
-            Application->MouseData.deltay = Application->Event.motion.yrel;
+            SDL_TypeToCommandLine(Application, event->text.text);
         } break;
     }
 }
@@ -102,15 +94,6 @@ void SDL_DrawWindowBackground(SDL_Application* Application)
     // first draw the bottom-most color
     SDL_SetRenderDrawColor(Application->Renderer, 0x80, 0x80, 0x80, 0xFF);
     SDL_RenderClear(Application->Renderer);
-
-    // then draw the left-hand list background
-    SDL_SetRenderDrawColor(Application->Renderer, 0x90, 0x90, 0x90, 0xFF);
-    SDL_FRect rect = {};
-    rect.x = 0;
-    rect.y = 0;
-    rect.w = 180;
-    rect.h = WINDOW_HEIGHT;
-    SDL_RenderFillRect(Application->Renderer, &rect);
 
     DIR* directoryStream = opendir("/");
     if(directoryStream == NULL)
@@ -138,7 +121,7 @@ void SDL_DrawWindowBackground(SDL_Application* Application)
     }
 }
 
-int main(void)
+int main(int argc, char** argv)
 {
     // initialization
     if(!SDL_Init(SDL_INIT_VIDEO))
@@ -152,63 +135,91 @@ int main(void)
         return SDL_APP_FAILURE;
     }
 
-    SDL_Application Application;
-    SDL_Event Event;
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d");
+
+    SDL_Application* Application = (SDL_Application*) malloc(sizeof(SDL_Application));
+    memset(Application, 0, sizeof(SDL_Application));
+    if(Application == NULL)
+    {
+        SDL_Log("Failed to allocate memory for Application");
+        return SDL_APP_FAILURE;
+    }
     SDL_MouseData mData = {};
     SDL_FontRenderer mFontRenderer = {};
     SDL_CommandPrompt mCommandPrompt = {};
     mCommandPrompt.shouldFree = false;
     mCommandPrompt.text = (char*)calloc(sizeof(char) * COMMAND_MAX_LENGTH, sizeof(char));
-    bool running = true;
     const bool* keyMap = SDL_GetKeyboardState(NULL);
 
     Uint64 deltaTime = 0;
 
-    Application.Window = SDL_CreateWindow("File Manager", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE);
-    Application.Surface = SDL_GetWindowSurface(Application.Window);
-    Application.Renderer = SDL_GetRenderer(Application.Window);
-    Application.MouseData = mData;
-    Application.FontRenderer = mFontRenderer;
-    Application.CommandPrompt = mCommandPrompt;
-    Application.Event = Event;
-    Application.running = true;
+    SDL_Window* mWindow;
+    SDL_Renderer* mRenderer;
+    SDL_CreateWindowAndRenderer("File Manager", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &mWindow, &mRenderer); 
+    mWindow = SDL_CreateWindow("File Manager", WINDOW_WIDTH, WINDOW_HEIGHT, 0);
+    mRenderer = SDL_CreateRenderer(mWindow, NULL);
+    Application->Window = mWindow;
+    if(Application->Window == NULL)
+    {
+        SDL_Log("Failed to create window.");
+        return SDL_APP_FAILURE;
+    }
+    Application->Surface = SDL_GetWindowSurface(Application->Window);
+    if(Application->Surface == NULL)
+    {
+        SDL_Log("Failed to load window surface");
+        return SDL_APP_FAILURE;
+    }
+    Application->Renderer = mRenderer;
+    if(Application->Renderer == NULL)
+    {
+        SDL_Log("Failed to load renderer.");
+        return SDL_APP_FAILURE;
+    } 
+    Application->MouseData = mData;
+    Application->FontRenderer = mFontRenderer;
+    Application->CommandPrompt = mCommandPrompt;
+    Application->running = true;
 
     SDL_Rect rect = {};
     rect.x = 0;
     rect.y = WINDOW_HEIGHT - 30;
     rect.w = WINDOW_WIDTH;
     rect.h = 30;
-    SDL_SetTextInputArea(Application.Window, &rect, 0);
+    SDL_SetTextInputArea(Application->Window, &rect, 0);
 
-    Application.FontRenderer.TextEngine = TTF_CreateRendererTextEngine(Application.Renderer);
-    Application.FontRenderer.Font = TTF_OpenFont("data/font/FreeSans.ttf", 16);
+    Application->FontRenderer.TextEngine = TTF_CreateRendererTextEngine(Application->Renderer);
+    Application->FontRenderer.Font = TTF_OpenFont("data/font/FreeSans.ttf", 16);
 
-    if(Application.Surface == NULL)
+    if(Application->Surface == NULL)
     {
         SDL_Log("Failed to load window surface");
         return SDL_APP_FAILURE;
     }
-    if(Application.Renderer == NULL)
+    if(Application->Renderer == NULL)
     {
         SDL_Log("Failed load renderer");
         return SDL_APP_FAILURE;
     }
 
-    SDL_StartTextInput(Application.Window);
+    bool success = SDL_StartTextInput(Application->Window);
 
     // main application loop
-    while(Application.running)
+    while(Application->running)
     {
         Uint64 currentTick = SDL_GetTicks();
         // event handler
-        while(SDL_PollEvent(&Application.Event))
+        SDL_Event event;
+        while(SDL_PollEvent(&event))
         {
-            SDL_ProcessEvent(&Application);
+            SDL_ProcessEvent(Application, &event);
         }
 
-        //SDL_DrawWindowBackground(&Application);
-        SDL_DrawBackground(&Application);
-        SDL_RenderPresent(Application.Renderer);
+        SDL_RenderClear(Application->Renderer);
+        SDL_DrawWindowBackground(Application);
+        SDL_DrawBackground(Application);
+        
+        SDL_RenderPresent(Application->Renderer);
         
 
         Uint64 timeToComplete = SDL_GetTicks() - currentTick;
@@ -227,13 +238,18 @@ int main(void)
         #endif
     }
 
-    SDL_StopTextInput(Application.Window);
+    SDL_StopTextInput(Application->Window);
 
-    TTF_CloseFont(Application.FontRenderer.Font);
-    TTF_DestroyRendererTextEngine(Application.FontRenderer.TextEngine);
-    SDL_DestroyRenderer(Application.Renderer);
-    SDL_DestroyWindowSurface(Application.Window);
-    SDL_DestroyWindow(Application.Window);
-    free(Application.CommandPrompt.text);
-    SDL_Quit();   
+    free(Application->CommandPrompt.text);
+
+    TTF_CloseFont(Application->FontRenderer.Font);
+    TTF_DestroyRendererTextEngine(Application->FontRenderer.TextEngine);
+    SDL_DestroyWindowSurface(Application->Window);
+    SDL_DestroyWindow(Application->Window);
+    SDL_DestroyRenderer(Application->Renderer);
+    SDL_PumpEvents();
+    free(Application);
+    SDL_Quit();
+
+    return 0;
 }
