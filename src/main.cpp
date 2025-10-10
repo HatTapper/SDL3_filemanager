@@ -121,10 +121,10 @@ void SDL_DrawWindowBackground(SDL_Application* Application)
     }
 }
 
-int main(int argc, char** argv)
+SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv)
 {
     // initialization
-    if(!SDL_Init(SDL_INIT_VIDEO))
+    if(!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
     {
         SDL_Log("Failed to initialize SDL.");
         return SDL_APP_FAILURE;
@@ -134,8 +134,6 @@ int main(int argc, char** argv)
         SDL_Log("Failed to initialize TTF.");
         return SDL_APP_FAILURE;
     }
-
-    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d");
 
     SDL_Application* Application = (SDL_Application*) malloc(sizeof(SDL_Application));
     memset(Application, 0, sizeof(SDL_Application));
@@ -155,9 +153,9 @@ int main(int argc, char** argv)
 
     SDL_Window* mWindow;
     SDL_Renderer* mRenderer;
-    SDL_CreateWindowAndRenderer("File Manager", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &mWindow, &mRenderer); 
-    mWindow = SDL_CreateWindow("File Manager", WINDOW_WIDTH, WINDOW_HEIGHT, 0);
-    mRenderer = SDL_CreateRenderer(mWindow, NULL);
+    //SDL_CreateWindowAndRenderer("File Manager", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &mWindow, &mRenderer); 
+    mWindow = SDL_CreateWindow("File Manager", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    mRenderer = SDL_CreateRenderer(mWindow, "opengl");
     Application->Window = mWindow;
     if(Application->Window == NULL)
     {
@@ -203,40 +201,89 @@ int main(int argc, char** argv)
     }
 
     bool success = SDL_StartTextInput(Application->Window);
-
-    // main application loop
-    while(Application->running)
+    if(!success)
     {
-        Uint64 currentTick = SDL_GetTicks();
-        // event handler
-        SDL_Event event;
-        while(SDL_PollEvent(&event))
-        {
-            SDL_ProcessEvent(Application, &event);
-        }
-
-        SDL_RenderClear(Application->Renderer);
-        SDL_DrawWindowBackground(Application);
-        SDL_DrawBackground(Application);
-        
-        SDL_RenderPresent(Application->Renderer);
-        
-
-        Uint64 timeToComplete = SDL_GetTicks() - currentTick;
-        // we want a consistent 60fps frame rate
-        // this is granular enough for a simple file manager
-        Uint64 remaining = GOAL_FRAME_TIME - (double)timeToComplete;
-        if(remaining > 0)
-        {
-            SDL_Delay(remaining);
-        }
-
-        deltaTime = SDL_GetTicks() - currentTick;
-
-        #if DEBUG
-            SDL_Log("%d FPS | %dms frametime", (int) (1000.0 / deltaTime), deltaTime);
-        #endif
+        SDL_Log("Failed to start text input on the window.");
+        return SDL_APP_FAILURE;
     }
+
+    // set "global" application variable
+    // void pointers sure are cool!
+    *appstate = Application;
+
+    SDL_Log("Loading was successful! Program is running.");
+
+    return SDL_APP_CONTINUE;
+}
+
+SDL_AppResult SDL_AppIterate(void* appstate)
+{
+    SDL_Application* Application = (SDL_Application*) appstate;
+    Uint64 currentTick = SDL_GetTicks();
+
+    SDL_RenderClear(Application->Renderer);
+    SDL_DrawWindowBackground(Application);
+    SDL_DrawBackground(Application);
+        
+    SDL_RenderPresent(Application->Renderer);
+
+    Uint64 timeToComplete = SDL_GetTicks() - currentTick;
+    // we want a consistent 60fps frame rate
+    // this is granular enough for a simple file manager
+    Uint64 remaining = GOAL_FRAME_TIME - (double)timeToComplete;
+    if(remaining > 0)
+    {
+        SDL_Delay(remaining);
+    }
+
+    int deltaTime = SDL_GetTicks() - currentTick;
+
+    #if DEBUG
+        SDL_Log("%d FPS | %dms frametime", (int) (1000.0 / deltaTime), deltaTime);
+    #endif
+
+    return SDL_APP_CONTINUE;
+}
+
+SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
+{
+    SDL_Application* Application = (SDL_Application*) appstate;
+
+    switch(event->type)
+    {
+        // fall through
+        case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
+        case SDL_EVENT_QUIT:
+        {
+            return SDL_APP_SUCCESS;
+        } break;
+
+        case SDL_EVENT_KEY_DOWN:
+        {
+            if(event->key.scancode == SDL_SCANCODE_RETURN)
+            {
+                SDL_ClearCommandLine(Application);
+            }
+            else if(event->key.scancode == SDL_SCANCODE_BACKSPACE)
+            {
+                SDL_BackspaceCommandLine(Application);
+            }
+        } break;
+        case SDL_EVENT_KEY_UP:
+        {
+        } break;
+        case SDL_EVENT_TEXT_INPUT:
+        {
+            SDL_TypeToCommandLine(Application, event->text.text);
+        } break;
+    }
+    return SDL_APP_CONTINUE;
+}
+
+void SDL_AppQuit(void* appstate, SDL_AppResult result)
+{
+    SDL_Log("Running cleanup!");
+    SDL_Application* Application = (SDL_Application*)appstate;
 
     SDL_StopTextInput(Application->Window);
 
@@ -250,6 +297,4 @@ int main(int argc, char** argv)
     SDL_PumpEvents();
     free(Application);
     SDL_Quit();
-
-    return 0;
 }
