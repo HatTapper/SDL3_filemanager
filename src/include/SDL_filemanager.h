@@ -1,11 +1,11 @@
-#ifndef SDL_FILEMANAGER_H
+#pragma once
 
+#ifndef SDL_FILEMANAGER_H
 #define SDL_FILEMANAGER_H
 
-#define SDL_MAIN_USE_CALLBACKS
+
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
-#include <SDL3/SDL_main.h>
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,5 +50,11 @@ struct Directory {
     int numChildren;
     Directory* children;
 };
+
+// these are functions that are necessary to handle the command input
+void CMD_HandleCommand(SDL_Application* Application, char* textSequence);
+void CMD_ClearCommandLine(SDL_Application* Application);
+void CMD_BackspaceCommandLine(SDL_Application* Application);
+void CMD_TypeToCommandLine(SDL_Application* Application, const char* text);
 
 #endif

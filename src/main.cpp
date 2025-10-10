@@ -1,12 +1,42 @@
 #include "include/SDL_filemanager.h"
-
-static bool shiftPressed = false;
+#define SDL_MAIN_USE_CALLBACKS
+#include <SDL3/SDL_main.h>
 
 void SDL_DrawBackground(SDL_Application* Application)
 {
     SDL_SetRenderDrawColor(Application->Renderer, 0x00, 0x00, 0x00, 0xFF);
     SDL_RenderClear(Application->Renderer);
 
+    // first draw the bottom-most color
+    SDL_SetRenderDrawColor(Application->Renderer, 0x80, 0x80, 0x80, 0xFF);
+
+    // draws the file list
+    DIR* directoryStream = opendir("/");
+    if(directoryStream == NULL)
+    {
+        SDL_Log("stream is null");
+    }
+    else
+    {
+        dirent* entry;
+
+        int x_offset = 0;
+        int y_offset = 0;
+        while((entry = readdir(directoryStream)) != NULL)
+        {
+            TTF_Text* text = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, entry->d_name, 0);
+            TTF_DrawRendererText(text, 30 + x_offset, y_offset);
+            y_offset += 24;
+            if(y_offset > WINDOW_HEIGHT - 48)
+            {
+                y_offset = 0;
+                x_offset += WINDOW_WIDTH / 3;
+            }
+            TTF_DestroyText(text);
+        }
+    }
+
+    // draws the command line on top
     SDL_SetRenderDrawColor(Application->Renderer, 0x30, 0x30, 0x30, 0xFF);
     SDL_FRect rect = {};
     rect.x = 0;
@@ -26,99 +56,6 @@ void SDL_DrawBackground(SDL_Application* Application)
     }
     TTF_DrawRendererText(TTFtext, 15, WINDOW_HEIGHT - 24);
     TTF_DestroyText(TTFtext);
-}
-
-void SDL_ClearCommandLine(SDL_Application* Application)
-{
-    for(int i = 0; i < COMMAND_MAX_LENGTH; i++)
-    {
-        Application->CommandPrompt.text[i] = 0;
-    }
-}
-
-void SDL_BackspaceCommandLine(SDL_Application* Application)
-{
-    if(Application->CommandPrompt.text == "")
-    {
-        return;
-    }
-
-    int initialLength = strlen(Application->CommandPrompt.text);
-    Application->CommandPrompt.text[initialLength - 1] = 0;
-}
-
-void SDL_TypeToCommandLine(SDL_Application* Application, const char* text)
-{
-    // prevent out of bounds
-    int currentTextLength = strlen(Application->CommandPrompt.text);
-    if(currentTextLength >= COMMAND_MAX_LENGTH)
-    {
-        return;
-    }
-
-    // append the text to the command prompt
-    strncat(Application->CommandPrompt.text, text, strlen(text));
-}   
-
-void SDL_ProcessEvent(SDL_Application* Application, SDL_Event* event)
-{
-    switch(event->type)
-    {
-        case SDL_EVENT_QUIT:
-        {
-            Application->running = false;
-        } break;
-        case SDL_EVENT_KEY_DOWN:
-        {
-            if(event->key.scancode == SDL_SCANCODE_RETURN)
-            {
-                SDL_ClearCommandLine(Application);
-            }
-            else if(event->key.scancode == SDL_SCANCODE_BACKSPACE)
-            {
-                SDL_BackspaceCommandLine(Application);
-            }
-        } break;
-        case SDL_EVENT_KEY_UP:
-        {
-        } break;
-        case SDL_EVENT_TEXT_INPUT:
-        {
-            SDL_TypeToCommandLine(Application, event->text.text);
-        } break;
-    }
-}
-
-void SDL_DrawWindowBackground(SDL_Application* Application)
-{
-    // first draw the bottom-most color
-    SDL_SetRenderDrawColor(Application->Renderer, 0x80, 0x80, 0x80, 0xFF);
-    SDL_RenderClear(Application->Renderer);
-
-    DIR* directoryStream = opendir("/");
-    if(directoryStream == NULL)
-    {
-        SDL_Log("stream is null");
-    }
-    else
-    {
-        dirent* entry;
-
-        int x_offset = 0;
-        int y_offset = 0;
-        while((entry = readdir(directoryStream)) != NULL)
-        {
-            TTF_Text* text = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, entry->d_name, 0);
-            TTF_DrawRendererText(text, 30 + x_offset, y_offset);
-            y_offset += 24;
-            if(y_offset > WINDOW_HEIGHT)
-            {
-                y_offset = 0;
-                x_offset += WINDOW_WIDTH / 2;
-            }
-            TTF_DestroyText(text);
-        }
-    }
 }
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv)
@@ -222,7 +159,6 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     Uint64 currentTick = SDL_GetTicks();
 
     SDL_RenderClear(Application->Renderer);
-    SDL_DrawWindowBackground(Application);
     SDL_DrawBackground(Application);
         
     SDL_RenderPresent(Application->Renderer);
@@ -262,11 +198,12 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
         {
             if(event->key.scancode == SDL_SCANCODE_RETURN)
             {
-                SDL_ClearCommandLine(Application);
+                CMD_HandleCommand(Application, Application->CommandPrompt.text);
+                CMD_ClearCommandLine(Application);
             }
             else if(event->key.scancode == SDL_SCANCODE_BACKSPACE)
             {
-                SDL_BackspaceCommandLine(Application);
+                CMD_BackspaceCommandLine(Application);
             }
         } break;
         case SDL_EVENT_KEY_UP:
@@ -274,7 +211,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
         } break;
         case SDL_EVENT_TEXT_INPUT:
         {
-            SDL_TypeToCommandLine(Application, event->text.text);
+            CMD_TypeToCommandLine(Application, event->text.text);
         } break;
     }
     return SDL_APP_CONTINUE;
