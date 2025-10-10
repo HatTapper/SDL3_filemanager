@@ -14,6 +14,9 @@ void SDL_DrawBackground(SDL_Application* Application)
     DIR* directoryStream = opendir("/");
     if(directoryStream == NULL)
     {
+        TTF_Text* text = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, "There was an error getting the files from this directory.", 0);
+        TTF_DrawRendererText(text, 30, 0);
+        TTF_DestroyText(text);
         SDL_Log("stream is null");
     }
     else
@@ -83,7 +86,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv)
     SDL_FontRenderer mFontRenderer = {};
     SDL_CommandPrompt mCommandPrompt = {};
     mCommandPrompt.shouldFree = false;
-    mCommandPrompt.text = (char*)calloc(sizeof(char) * COMMAND_MAX_LENGTH, sizeof(char));
+    //mCommandPrompt.text = (char*)calloc(sizeof(char) * COMMAND_MAX_LENGTH, sizeof(char));
     const bool* keyMap = SDL_GetKeyboardState(NULL);
 
     Uint64 deltaTime = 0;
@@ -223,8 +226,6 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result)
     SDL_Application* Application = (SDL_Application*)appstate;
 
     SDL_StopTextInput(Application->Window);
-
-    free(Application->CommandPrompt.text);
 
     TTF_CloseFont(Application->FontRenderer.Font);
     TTF_DestroyRendererTextEngine(Application->FontRenderer.TextEngine);

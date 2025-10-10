@@ -15,7 +15,7 @@
 #define DEBUG 0
 #define WINDOW_WIDTH 720
 #define WINDOW_HEIGHT 540
-#define COMMAND_MAX_LENGTH 50
+#define COMMAND_MAX_LENGTH 100
 
 struct SDL_MouseData {
     int posX;
@@ -30,7 +30,7 @@ struct SDL_FontRenderer {
 };
 
 struct SDL_CommandPrompt {
-    char* text;
+    char text[COMMAND_MAX_LENGTH];
     bool shouldFree;
 };
 
