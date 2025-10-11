@@ -17,6 +17,13 @@
 #define WINDOW_HEIGHT 540
 #define COMMAND_MAX_LENGTH 100
 
+struct ColorData {
+    Uint8 r;
+    Uint8 g;
+    Uint8 b;
+    Uint8 a;
+};
+
 struct SDL_MouseData {
     int posX;
     int posY;
@@ -31,13 +38,8 @@ struct SDL_FontRenderer {
 
 struct SDL_CommandPrompt {
     char text[COMMAND_MAX_LENGTH];
-    bool shouldFree;
-};
-
-struct StringArray {
-    char* str;
-    size_t length;
-    StringArray* next;
+    char outputText[128];
+    ColorData outputTextColor;
 };
 
 struct DirectoryData {
@@ -63,5 +65,6 @@ void CMD_HandleCommand(SDL_Application* Application, char* textSequence);
 void CMD_ClearCommandLine(SDL_Application* Application);
 void CMD_BackspaceCommandLine(SDL_Application* Application);
 void CMD_TypeToCommandLine(SDL_Application* Application, const char* text);
+void CMD_WriteToOutput(SDL_Application* Application, const char* text, Uint32 rgba);
 
 #endif

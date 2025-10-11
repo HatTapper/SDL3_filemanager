@@ -16,7 +16,7 @@ void SDL_DrawBackground(SDL_Application* Application)
     if(directoryStream == NULL)
     {
         TTF_Text* text = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, "There was an error getting the files from this directory.", 0);
-        TTF_DrawRendererText(text, 30, 0);
+        TTF_DrawRendererText(text, 30, 30);
         TTF_DestroyText(text);
     }
     else
@@ -24,7 +24,7 @@ void SDL_DrawBackground(SDL_Application* Application)
         dirent* entry;
 
         int x_offset = 0;
-        int y_offset = 0;
+        int y_offset = 30;
         while((entry = readdir(directoryStream)) != NULL)
         {
             TTF_Text* text = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, entry->d_name, 0);
@@ -32,7 +32,7 @@ void SDL_DrawBackground(SDL_Application* Application)
             y_offset += 24;
             if(y_offset > WINDOW_HEIGHT - 48)
             {
-                y_offset = 0;
+                y_offset = 30;
                 x_offset += WINDOW_WIDTH / 3;
             }
             TTF_DestroyText(text);
@@ -40,7 +40,7 @@ void SDL_DrawBackground(SDL_Application* Application)
     }
     closedir(directoryStream);
 
-    // draws the command line on top
+    // draws the command line at the bottom
     SDL_SetRenderDrawColor(Application->Renderer, 0x30, 0x30, 0x30, 0xFF);
     SDL_FRect rect = {};
     rect.x = 0;
@@ -53,6 +53,22 @@ void SDL_DrawBackground(SDL_Application* Application)
     TTFtext = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, Application->CommandPrompt.text, 0);
     TTF_DrawRendererText(TTFtext, 15, WINDOW_HEIGHT - 24);
     TTF_DestroyText(TTFtext);
+
+    // draws the output line at the top right
+    SDL_SetRenderDrawColor(Application->Renderer, 0x20, 0x20, 0x20, 0xFF);
+    SDL_FRect topRightRect;
+    topRightRect.x = 0;
+    topRightRect.y = 0;
+    topRightRect.h = 20;
+    topRightRect.w = WINDOW_WIDTH;
+
+    SDL_RenderFillRect(Application->Renderer, &topRightRect);
+    TTF_Text* TTFText = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, Application->CommandPrompt.outputText, 0);
+
+    ColorData clrData = Application->CommandPrompt.outputTextColor;
+    TTF_SetTextColor(TTFText, clrData.r, clrData.g, clrData.b, clrData.a);
+    TTF_DrawRendererText(TTFText, 15, 4);
+    TTF_DestroyText(TTFText);
 }
 
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv)
@@ -82,8 +98,6 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv)
     mDirData.focusedFile[0] = '/';
     mDirData.focusedFile[1] = '\0';
     SDL_CommandPrompt mCommandPrompt = {};
-    mCommandPrompt.shouldFree = false;
-    //mCommandPrompt.text = (char*)calloc(sizeof(char) * COMMAND_MAX_LENGTH, sizeof(char));
     const bool* keyMap = SDL_GetKeyboardState(NULL);
 
     Uint64 deltaTime = 0;
@@ -149,7 +163,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv)
     // void pointers sure are cool!
     *appstate = Application;
 
-    SDL_Log("Loading was successful! Program is running.");
+    CMD_WriteToOutput(Application, "Welcome! Program successfully started.", 0xFFFFFFFF);
 
     return SDL_APP_CONTINUE;
 }
@@ -161,7 +175,7 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     {
         return SDL_APP_SUCCESS;
     }
-    
+
     Uint64 currentTick = SDL_GetTicks();
 
     SDL_RenderClear(Application->Renderer);
@@ -228,7 +242,6 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
 
 void SDL_AppQuit(void* appstate, SDL_AppResult result)
 {
-    SDL_Log("Running cleanup!");
     SDL_Application* Application = (SDL_Application*)appstate;
 
     SDL_StopTextInput(Application->Window);
