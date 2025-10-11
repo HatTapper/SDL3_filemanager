@@ -34,6 +34,16 @@ struct SDL_CommandPrompt {
     bool shouldFree;
 };
 
+struct StringArray {
+    char* str;
+    size_t length;
+    StringArray* next;
+};
+
+struct DirectoryData {
+    char focusedFile[PATH_MAX];
+};
+
 struct SDL_Application {
     SDL_Window* Window;
     SDL_Surface* Surface;
@@ -41,15 +51,12 @@ struct SDL_Application {
     SDL_FontRenderer FontRenderer;
     SDL_MouseData MouseData;
     SDL_CommandPrompt CommandPrompt;
+    DirectoryData DirData;
     
     bool running;
 };
 
-struct Directory {
-    char fileName[PATH_MAX];
-    int numChildren;
-    Directory* children;
-};
+
 
 // these are functions that are necessary to handle the command input
 void CMD_HandleCommand(SDL_Application* Application, char* textSequence);

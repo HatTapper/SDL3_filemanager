@@ -11,13 +11,13 @@ void SDL_DrawBackground(SDL_Application* Application)
     SDL_SetRenderDrawColor(Application->Renderer, 0x80, 0x80, 0x80, 0xFF);
 
     // draws the file list
-    DIR* directoryStream = opendir("/");
+    DirectoryData data = Application->DirData;
+    DIR* directoryStream = opendir(data.focusedFile);
     if(directoryStream == NULL)
     {
         TTF_Text* text = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, "There was an error getting the files from this directory.", 0);
         TTF_DrawRendererText(text, 30, 0);
         TTF_DestroyText(text);
-        SDL_Log("stream is null");
     }
     else
     {
@@ -38,6 +38,7 @@ void SDL_DrawBackground(SDL_Application* Application)
             TTF_DestroyText(text);
         }
     }
+    closedir(directoryStream);
 
     // draws the command line on top
     SDL_SetRenderDrawColor(Application->Renderer, 0x30, 0x30, 0x30, 0xFF);
@@ -49,14 +50,7 @@ void SDL_DrawBackground(SDL_Application* Application)
     SDL_RenderFillRect(Application->Renderer, &rect);
 
     TTF_Text* TTFtext;
-    if(Application->CommandPrompt.text != "")
-    {
-        TTFtext = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, Application->CommandPrompt.text, 0);
-    }
-    else
-    {
-        TTFtext = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, "", 0);
-    }
+    TTFtext = TTF_CreateText(Application->FontRenderer.TextEngine, Application->FontRenderer.Font, Application->CommandPrompt.text, 0);
     TTF_DrawRendererText(TTFtext, 15, WINDOW_HEIGHT - 24);
     TTF_DestroyText(TTFtext);
 }
@@ -84,6 +78,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv)
     }
     SDL_MouseData mData = {};
     SDL_FontRenderer mFontRenderer = {};
+    DirectoryData mDirData = {};
+    mDirData.focusedFile[0] = '/';
+    mDirData.focusedFile[1] = '\0';
     SDL_CommandPrompt mCommandPrompt = {};
     mCommandPrompt.shouldFree = false;
     //mCommandPrompt.text = (char*)calloc(sizeof(char) * COMMAND_MAX_LENGTH, sizeof(char));
@@ -117,6 +114,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv)
     Application->MouseData = mData;
     Application->FontRenderer = mFontRenderer;
     Application->CommandPrompt = mCommandPrompt;
+    Application->DirData = mDirData;
     Application->running = true;
 
     SDL_Rect rect = {};
@@ -159,6 +157,11 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char** argv)
 SDL_AppResult SDL_AppIterate(void* appstate)
 {
     SDL_Application* Application = (SDL_Application*) appstate;
+    if(!Application->running)
+    {
+        return SDL_APP_SUCCESS;
+    }
+    
     Uint64 currentTick = SDL_GetTicks();
 
     SDL_RenderClear(Application->Renderer);
@@ -191,6 +194,9 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
     switch(event->type)
     {
         // fall through
+        // there are some cases where it for some reason
+        // opens multiple windows on startup, so this allows them to
+        // still close as intended when the X button is pressed.
         case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
         case SDL_EVENT_QUIT:
         {
@@ -230,9 +236,11 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result)
     TTF_CloseFont(Application->FontRenderer.Font);
     TTF_DestroyRendererTextEngine(Application->FontRenderer.TextEngine);
     SDL_DestroyWindowSurface(Application->Window);
-    SDL_DestroyWindow(Application->Window);
     SDL_DestroyRenderer(Application->Renderer);
+    SDL_DestroyWindow(Application->Window);
+    SDL_free(Application);
     SDL_PumpEvents();
-    free(Application);
     SDL_Quit();
+
+    SDL_Log("Cleanup successful!");
 }
